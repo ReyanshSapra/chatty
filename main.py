@@ -3,7 +3,8 @@ from minio import Minio
 from minio.error import S3Error
 import json
 import time
-import uuid
+import string
+import random
 import io
 
 minio_client = Minio(
@@ -22,7 +23,7 @@ except S3Error as e:
     print(f"Error occurred: {e}")
 
 def create_group():
-    group_id = str(uuid.uuid4())[:8]
+    group_id = ''.join(random.choices(string.ascii_uppercase, k=6))
     group_data = {
         'messages': [],
         'created_at': time.time()
@@ -114,7 +115,7 @@ def main():
 </style>
 """, unsafe_allow_html=True)
 
-    st.title("Chatty")
+    st.title("Chatty Bro")
 
     if 'username' not in st.session_state:
         st.session_state.username = ''
