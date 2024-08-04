@@ -156,7 +156,7 @@ def main():
                     st.markdown(f"<div class='chat-message other-message'><b>{msg['username']}:</b> {msg['message']}</div>", unsafe_allow_html=True)
 
             time.sleep(1)
-            st.experimental_rerun()
+            
 
 if __name__ == "__main__":
     main()
