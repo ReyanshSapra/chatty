@@ -15,12 +15,59 @@ minio_client = Minio(
 )
 
 BUCKET_NAME = "group-chat-app"
+USERS_FILE = "users.json"
 
-try:
-    if not minio_client.bucket_exists(BUCKET_NAME):
-        minio_client.make_bucket(BUCKET_NAME)
-except S3Error as e:
-    print(f"Error occurred: {e}")
+def initialize_bucket():
+    try:
+        if not minio_client.bucket_exists(BUCKET_NAME):
+            minio_client.make_bucket(BUCKET_NAME)
+    except S3Error as e:
+        print(f"Error occurred: {e}")
+
+def load_users():
+    try:
+        response = minio_client.get_object(BUCKET_NAME, USERS_FILE)
+        users_data = response.read().decode('utf-8')
+        return json.loads(users_data)
+    except S3Error:
+        return {}
+
+def save_users(users):
+    json_data = json.dumps(users).encode('utf-8')
+    minio_client.put_object(
+        BUCKET_NAME,
+        USERS_FILE,
+        io.BytesIO(json_data),
+        len(json_data)
+    )
+
+def register_user(username, password):
+    users = load_users()
+    if username in users:
+        return False
+    users[username] = {
+        'password': password,
+        'groups': []
+    }
+    save_users(users)
+    return True
+
+def authenticate_user(username, password):
+    users = load_users()
+    user_data = users.get(username)
+    if user_data:
+        return user_data.get('password') == password
+    return False
+
+def add_group_to_user(username, group_id):
+    users = load_users()
+    if username in users:
+        users[username]['groups'].append(group_id)
+        save_users(users)
+
+def get_user_groups(username):
+    users = load_users()
+    return users.get(username, {}).get('groups', [])
 
 def create_group():
     group_id = ''.join(random.choices(string.ascii_uppercase, k=6))
@@ -34,6 +81,7 @@ def create_group():
 def join_group(group_id, username):
     try:
         minio_client.stat_object(BUCKET_NAME, f"{group_id}.json")
+        add_group_to_user(username, group_id)
         return True
     except S3Error:
         return False
@@ -68,7 +116,7 @@ def get_group_data(group_id):
         return {'messages': []}
 
 def main():
-    st.set_page_config(page_title="Chatty", page_icon="💬", layout="centered")
+    st.set_page_config(page_title="Chatty Bro", page_icon="💬", layout="centered")
 
     st.markdown("""
 <style>
@@ -117,34 +165,82 @@ def main():
 
     st.title("Chatty Bro")
 
-    if 'username' not in st.session_state:
-        st.session_state.username = ''
+    # Initialize session state variables
+    if 'logged_in' not in st.session_state:
+        st.session_state.logged_in = False
     if 'group_id' not in st.session_state:
         st.session_state.group_id = ''
+    if 'username' not in st.session_state:
+        st.session_state.username = ''
+    if 'view' not in st.session_state:
+        st.session_state.view = 'selection'  # options: 'selection', 'login', 'register'
 
-    if not st.session_state.username:
-        st.session_state.username = st.text_input("Enter your name:")
+    if not st.session_state.logged_in:
+        if st.session_state.view == 'selection':
+            if st.button("Login", key="login_button"):
+                st.session_state.view = 'login'
+            if st.button("Register", key="register_button"):
+                st.session_state.view = 'register'
 
-    if st.session_state.username:
+        if st.session_state.view == 'login':
+            st.write("### Login")
+            username = st.text_input("Username", key="login_username")
+            password = st.text_input("Password", type="password", key="login_password")
+            if st.button("Login", key="login_submit"):
+                if authenticate_user(username, password):
+                    st.session_state.logged_in = True
+                    st.session_state.username = username
+                    st.session_state.view = 'selection'
+                else:
+                    st.error("Invalid username or password")
+            if st.button("Back", key="login_back"):
+                st.session_state.view = 'selection'
+
+        if st.session_state.view == 'register':
+            st.write("### Register")
+            new_username = st.text_input("New Username", key="register_username")
+            new_password = st.text_input("New Password", type="password", key="register_password")
+            if st.button("Register", key="register_submit"):
+                if register_user(new_username, new_password):
+                    st.session_state.logged_in = True
+                    st.session_state.username = new_username
+                    st.session_state.view = 'selection'
+                    st.success("Registration successful! You are now logged in.")
+                else:
+                    st.error("Username already exists")
+            if st.button("Back", key="register_back"):
+                st.session_state.view = 'selection'
+
+    if st.session_state.logged_in:
+        st.write(f"Welcome, {st.session_state.username}!")
+
+        user_groups = get_user_groups(st.session_state.username)
+        if user_groups:
+            st.write("Your Groups:")
+            for group in user_groups:
+                if st.button(group, key=f"group_{group}"):
+                    st.session_state.group_id = group
+
         if not st.session_state.group_id:
             col1, col2 = st.columns(2)
             with col1:
-                group_id = st.text_input("Enter group code to join:")
-                if st.button("Join Group"):
+                group_id = st.text_input("Enter group code to join:", key="group_code_input")
+                if st.button("Join Group", key="join_group_button"):
                     if join_group(group_id, st.session_state.username):
                         st.session_state.group_id = group_id
                     else:
                         st.error("Invalid group code")
             with col2:
-                if st.button("Create New Group"):
+                if st.button("Create New Group", key="create_group_button"):
                     new_group_id = create_group()
+                    add_group_to_user(st.session_state.username, new_group_id)
                     st.session_state.group_id = new_group_id
                     st.success(f"New group created! Code: {new_group_id}")
 
         if st.session_state.group_id:
             st.write(f"Group Code: {st.session_state.group_id}")
-            message = st.text_input("Type your message:")
-            if st.button("Send"):
+            message = st.text_input("Type your message:", key="message_input")
+            if st.button("Send", key="send_button"):
                 if message:
                     send_message(st.session_state.group_id, st.session_state.username, message)
 
@@ -156,7 +252,7 @@ def main():
                     st.markdown(f"<div class='chat-message other-message'><b>{msg['username']}:</b> {msg['message']}</div>", unsafe_allow_html=True)
 
             time.sleep(1)
-            
 
 if __name__ == "__main__":
+    initialize_bucket()
     main()
