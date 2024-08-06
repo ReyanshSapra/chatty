@@ -136,7 +136,7 @@ def main():
     border-radius: 5px;
     border: none;
     padding: 10px 24px;
-    transition: all 0.3s ease;
+    transition: all 0.05s ease;
 }
 .stButton > button:hover {
     background-color: #0056b3;
