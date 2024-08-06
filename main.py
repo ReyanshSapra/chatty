@@ -121,7 +121,7 @@ def main():
     st.markdown("""
 <style>
 .stApp {
-    background-color: #444444;
+    background-color: #07e9ed;
     font-family: 'Arial', sans-serif;
 }
 .stTextInput > div > div > input {
