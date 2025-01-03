@@ -236,7 +236,7 @@ def main():
                     add_group_to_user(st.session_state.username, new_group_id)
                     st.session_state.group_id = new_group_id
                     st.success(f"New group created! Code: {new_group_id}")
-    while True:
+    
         if st.session_state.group_id:
             st.write(f"Group Code: {st.session_state.group_id}")
             message = st.text_input("Type your message:", key="message_input")
