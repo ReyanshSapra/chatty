@@ -238,7 +238,7 @@ def main():
                     st.success(f"New group created! Code: {new_group_id}")
     
         if st.session_state.group_id:
-            st.experimental_rerun()
+            st.rerun()
             st.write(f"Group Code: {st.session_state.group_id}")
             message = st.text_input("Type your message:", key="message_input")
             if st.button("Send", key="send_button"):
