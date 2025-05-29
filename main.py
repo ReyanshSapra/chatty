@@ -116,7 +116,7 @@ def get_group_data(group_id):
         return {'messages': []}
 
 def main():
-    st.set_page_config(page_title="Chatty Bro", page_icon="💬", layout="centered")
+    st.set_page_config(page_title="Chat Pal", page_icon="💬", layout="centered")
 
     st.markdown("""
 <style>
@@ -163,7 +163,7 @@ def main():
 </style>
 """, unsafe_allow_html=True)
 
-    st.title("Chatty Bro")
+    st.title("Chat Pal")
 
     # Initialize session state variables
     if 'logged_in' not in st.session_state:
